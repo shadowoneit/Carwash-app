@@ -123,6 +123,12 @@
   .btn-ghost{background:var(--paper);color:var(--red-deep);border:2px solid var(--line);}
   .btn-ghost:hover{border-color:var(--red);}
   .btn-block{width:100%;}
+  .btn-cancel{
+    display:block;width:100%;background:none;border:none;
+    color:var(--ink-soft);font-size:12.5px;font-weight:600;
+    padding:8px 4px 0;cursor:pointer;text-align:center;
+  }
+  .btn-cancel:hover{color:var(--red-deep);text-decoration:underline;}
 
   .pay-grid{display:flex;gap:10px;margin:10px 0;}
   .pay-card{
@@ -537,6 +543,7 @@ function renderCurrentCard(){
           </div>
           <div class="status-line"><span class="pulse-dot"></span>กำลังล้างอยู่ · <span class="timer-text" id="timer-${o.id}">${formatDuration((Date.now()-o.startTime)/1000)}</span></div>
           <button class="btn btn-primary btn-block" onclick="markCarOut('${o.id}')">🚙 รถออก</button>
+          <button class="btn-cancel" onclick="cancelOrder('${o.id}')">✕ ยกเลิกคิวนี้</button>
         </div>
       `;
     }
@@ -559,9 +566,20 @@ function renderCurrentCard(){
           </div>
         </div>
         <button class="btn btn-primary btn-block" ${o.method?'':'disabled'} onclick="confirmPayment('${o.id}')">✅ ยืนยันการชำระเงิน</button>
+        <button class="btn-cancel" onclick="cancelOrder('${o.id}')">✕ ยกเลิกคิวนี้</button>
       </div>
     `;
   }).join('') + `</div>`;
+}
+
+function cancelOrder(id){
+  const o = findOrder(id);
+  if(!o) return;
+  const ok = confirm(`ยกเลิกคิว #${o.queue} (${o.size} · ${o.sizeLabel}) ใช่หรือไม่?`);
+  if(!ok) return;
+  activeOrders = activeOrders.filter(x=>x.id!==id);
+  renderCurrentCard();
+  showToast(`ยกเลิกคิว #${o.queue} แล้ว`);
 }
 
 // อัปเดตตัวเลขจับเวลาของคันที่ยังกำลังล้างอยู่ทุกวินาที โดยไม่ต้อง re-render ทั้งการ์ด
