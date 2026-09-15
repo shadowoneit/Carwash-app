@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ล้างรถด่วน 8'Riew</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-a:#FFD447;
+    --bg-b:#E5342B;
+    --paper:#FFFFFF;
+    --chip:#FFF3D6;
+    --ink:#241B18;
+    --ink-soft:#8A7A75;
+    --red:#E5342B;
+    --red-deep:#C22A22;
+    --yellow:#FFC93C;
+    --yellow-deep:#E8AE1D;
+    --line:#F1E6DA;
+    --good:#2AA876;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:linear-gradient(155deg, var(--bg-a), var(--bg-b) 75%);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 14px;
+    color:var(--ink);
+  }
+  .frame{
+    width:100%;
+    max-width:440px;
+    background:var(--paper);
+    border-radius:28px;
+    overflow:hidden;
+    box-shadow:0 30px 60px -20px rgba(120,30,20,0.45);
+    border:1px solid rgba(255,255,255,0.5);
+    height:fit-content;
+    position:relative;
+  }
+  .drip-bar{
+    height:8px;
+    background:repeating-linear-gradient(90deg, var(--yellow) 0 22px, var(--red) 22px 44px);
+  }
+  .content{padding:22px 20px 26px;display:flex;flex-direction:column;gap:16px;}
+
+  h1,h2,h3{font-family:'Baloo 2',sans-serif;margin:0;color:var(--ink);}
+  .brand{display:flex;align-items:center;gap:10px;justify-content:center;}
+  .brand-emoji{font-size:30px;}
+  .brand h1{font-size:20px;letter-spacing:.2px;}
+  .brand-sub{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:-8px;margin-bottom:4px;}
+
+  .card{
+    background:var(--paper);border:1px solid var(--line);border-radius:20px;
+    padding:18px;box-shadow:0 12px 24px -18px rgba(150,60,40,0.3);
+  }
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .card-title{font-family:'Baloo 2',sans-serif;font-size:16px;}
+
+  .size-grid{display:flex;flex-direction:column;gap:10px;}
+  .size-card{
+    background:var(--paper);border:2px solid var(--line);border-radius:16px;
+    padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+    transition:border-color .15s ease, transform .12s ease;
+    text-align:left;
+  }
+  .size-card:hover{border-color:var(--yellow-deep);}
+  .size-card:active{transform:scale(.98);}
+  .icon-chip{
+    width:44px;height:44px;border-radius:12px;background:var(--chip);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    color:var(--red);
+  }
+  .icon-chip svg{width:28px;height:28px;}
+  .size-info{flex:1;}
+  .size-name{font-weight:700;font-size:14.5px;}
+  .size-desc{color:var(--ink-soft);font-size:12px;margin-top:1px;}
+  .size-price{font-family:'Baloo 2',sans-serif;font-weight:700;color:var(--red-deep);font-size:17px;white-space:nowrap;}
+
+  .queue-empty{
+    text-align:center;color:var(--ink-soft);font-size:13.5px;padding:22px 10px;
+  }
+  .queue-empty-emoji{font-size:32px;display:block;margin-bottom:8px;}
+
+  .order-list{display:flex;flex-direction:column;gap:12px;}
+  .order-item{
+    border:1px solid var(--line);border-radius:16px;padding:14px;background:#FFFDF8;
+  }
+  .queue-badge{
+    display:inline-block;background:var(--yellow);color:var(--ink);
+    font-family:'Baloo 2',sans-serif;font-weight:800;font-size:13px;
+    padding:3px 12px;border-radius:999px;margin-bottom:8px;
+  }
+  .order-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .order-size{font-weight:700;font-size:14.5px;}
+  .order-price{font-family:'Baloo 2',sans-serif;color:var(--red-deep);font-size:15.5px;margin-left:auto;}
+  .status-line{
+    display:flex;align-items:center;font-size:12.5px;color:var(--good);font-weight:600;margin:6px 0 12px;
+  }
+  .status-line.wait{color:var(--red-deep);}
+  .pulse-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:currentColor;margin-right:6px;
+    animation:pulse 1.4s infinite;
+  }
+  @keyframes pulse{0%{opacity:1;}50%{opacity:.3;}100%{opacity:1;}}
+
+  .btn{
+    border:none;border-radius:14px;padding:12px 16px;
+    font-family:'Inter',sans-serif;font-weight:700;font-size:14px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s ease, box-shadow .12s ease, opacity .15s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-primary{background:var(--red);color:#fff;box-shadow:0 10px 20px -10px rgba(197,40,30,0.55);}
+  .btn-primary:hover:not(:disabled){background:var(--red-deep);}
+  .btn-ghost{background:var(--paper);color:var(--red-deep);border:2px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--red);}
+  .btn-block{width:100%;}
+
+  .pay-grid{display:flex;gap:10px;margin:10px 0;}
+  .pay-card{
+    flex:1;background:var(--paper);border:2px solid var(--line);border-radius:14px;
+    padding:12px 8px;text-align:center;cursor:pointer;transition:border-color .15s ease, transform .12s ease;
+  }
+  .pay-card:hover{border-color:var(--red);}
+  .pay-card:active{transform:scale(.97);}
+  .pay-card.selected{border-color:var(--red);background:#FFF1EF;}
+  .pay-emoji{font-size:22px;margin-bottom:4px;}
+  .pay-label{font-weight:700;font-size:12.5px;}
+
+  .stat-grid{display:flex;gap:10px;}
+  .stat-box{
+    flex:1;background:#FFFDF8;border-radius:14px;padding:14px 10px;text-align:center;border:1px solid var(--line);
+  }
+  .stat-label{color:var(--ink-soft);font-size:11.5px;margin-bottom:4px;}
+  .stat-value{font-family:'Baloo 2',sans-serif;font-size:24px;color:var(--ink);}
+  .stat-value.red{color:var(--red-deep);}
+
+  .range-grid{display:flex;gap:8px;margin-bottom:12px;}
+  .range-btn{
+    flex:1;background:var(--paper);border:2px solid var(--line);border-radius:12px;
+    padding:9px 6px;text-align:center;font-weight:700;font-size:12.5px;cursor:pointer;
+  }
+  .range-btn.active{border-color:var(--red);background:#FFF1EF;color:var(--red-deep);}
+
+  .report-line{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--line);}
+  .report-line:last-child{border-bottom:none;}
+  .report-sub{font-size:11.5px;color:var(--ink-soft);font-weight:700;margin:10px 0 2px;}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;
+    opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:80;
+  }
+  .toast.show{opacity:1;}
+
+  .sync-banner{
+    display:none;align-items:center;gap:8px;justify-content:center;
+    background:#FFF6E0;border:1px solid #F3D98A;color:#8A6A1A;
+    font-size:12px;font-weight:600;border-radius:12px;padding:8px 10px;
+  }
+  .sync-banner.show{display:flex;}
+  .spin{
+    width:13px;height:13px;border-radius:50%;
+    border:2px solid #E8AE1D;border-top-color:transparent;
+    animation:spin .7s linear infinite;flex-shrink:0;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .pending-badge{
+    display:none;align-items:center;gap:6px;justify-content:center;
+    background:#FFF1EF;border:1px solid #F5C4BD;color:var(--red-deep);
+    font-size:11.5px;font-weight:700;border-radius:10px;padding:6px 10px;margin-top:8px;
+  }
+  .pending-badge.show{display:flex;}
+
+  .modal-backdrop{
+    position:absolute;inset:0;background:rgba(36,27,24,0.45);
+    display:none;align-items:flex-end;justify-content:center;z-index:60;
+    border-radius:28px;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal-sheet{
+    background:var(--paper);width:100%;max-height:82%;overflow-y:auto;
+    border-radius:22px 22px 0 0;padding:20px 20px 24px;
+    animation:slideUp .25s ease;
+  }
+  @keyframes slideUp{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .modal-close{
+    background:var(--line);border:none;width:30px;height:30px;border-radius:10px;
+    font-size:16px;cursor:pointer;color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="drip-bar"></div>
+  <div class="content">
+
+    <div class="brand">
+      <span class="brand-emoji">🚗</span>
+      <h1>ล้างรถด่วน 8'Riew</h1>
+    </div>
+    <div class="brand-sub">คิวไว จ่ายง่าย สรุปยอดอัตโนมัติ</div>
+    <div class="sync-banner" id="sync-banner"><span class="spin"></span><span id="sync-banner-text">กำลังซิงค์ข้อมูลล่าสุด...</span></div>
+
+    <!-- เลือกขนาดรถ -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">เลือกขนาดรถ</div>
+      </div>
+      <div class="size-grid" id="size-grid"></div>
+    </div>
+
+    <!-- คิวปัจจุบัน / ชำระเงิน -->
+    <div class="card" id="current-card">
+      <div class="card-head">
+        <div class="card-title">คิวปัจจุบัน</div>
+      </div>
+      <div id="current-body"></div>
+    </div>
+
+    <!-- สรุปยอดวันนี้ -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">สรุปยอดวันนี้</div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-label">รถที่ล้างวันนี้</div>
+          <div class="stat-value" id="sum-count">0 คัน</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">ยอดเงินวันนี้</div>
+          <div class="stat-value red" id="sum-total">0 บาท</div>
+        </div>
+      </div>
+      <div class="pending-badge" id="pending-badge">⏳ รอซิงค์ขึ้น Google Sheet 0 รายการ</div>
+    </div>
+
+    <button class="btn btn-ghost btn-block" onclick="openHistory()">📅 ดูรายงานย้อนหลัง</button>
+
+  </div>
+
+  <!-- MODAL: รายงานย้อนหลัง -->
+  <div class="modal-backdrop" id="history-modal" onclick="closeHistoryOnBackdrop(event)">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <div class="card-title">📅 รายงานย้อนหลัง</div>
+        <button class="modal-close" onclick="closeHistory()">✕</button>
+      </div>
+      <div class="range-grid">
+        <div class="range-btn" data-range="1" onclick="showReport(1)">1 วัน</div>
+        <div class="range-btn" data-range="7" onclick="showReport(7)">7 วัน</div>
+        <div class="range-btn" data-range="30" onclick="showReport(30)">1 เดือน</div>
+      </div>
+      <div id="report-area"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ICONS = {
+  S: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 24C5 24 6 15 15 14L21 13.5C24 8 29 5 36 5C43 5 47 8 49 13.5L55 14.5C59.5 15.5 60 20 60 24H5Z" fill="currentColor"/><circle cx="18" cy="26" r="5.5" fill="#241B18"/><circle cx="47" cy="26" r="5.5" fill="#241B18"/></svg>`,
+  M: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24V17C4 15 5.5 13.5 7.5 13.5H24C26 8.5 30 6 36 6C41 6 44 8.5 45.5 13.5H50V24H4Z" fill="currentColor"/><path d="M45.5 13.5H58C60 13.5 61 15 61 17V24H45.5V13.5Z" fill="currentColor" fill-opacity="0.55"/><circle cx="17" cy="26" r="5.5" fill="#241B18"/><circle cx="48" cy="26" r="5.5" fill="#241B18"/></svg>`,
+  L: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24V12C4 9 6.5 7 9.5 7H50C55 7 59 11 59 16V24H4Z" fill="currentColor"/><rect x="4" y="13" width="14" height="9" rx="1.5" fill="#241B18" fill-opacity="0.18"/><circle cx="18" cy="26" r="5.5" fill="#241B18"/><circle cx="48" cy="26" r="5.5" fill="#241B18"/></svg>`
+};
+
+const SIZES = [
+  {key:'S', label:'เก๋งเล็ก', price:60},
+  {key:'M', label:'กระบะ / SUV', price:79},
+  {key:'L', label:'Van', price:89},
+];
+
+// ==== ตั้งค่า Google Sheet ====
+// นำ Web app URL ที่ได้จากการ Deploy Google Apps Script มาวางแทนค่าด้านล่างนี้
+// ต้องลงท้ายด้วย /exec เช่น https://script.google.com/macros/s/AKfycb.../exec
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbwW7CDqbYHMCWxrg9D70yPSf7hGcyTB4vvyNTHF0SqMxYlSIMhxtxhBFZU0AtYiT6F4/exec";
+
+let activeOrders = []; // [{id, queue, size, sizeLabel, price, status:'washing'|'payment', method}]
+let dailyCounter = 0;
+let records = [];
+let activeRange = 1;
+
+const CACHE_KEY = 'carwash_cache_v1';
+const PENDING_KEY = 'carwash_pending_v1';
+let pending = []; // records that failed to reach Google Sheet, waiting to retry
+let retryTimer = null;
+
+// หมายเหตุ: การแคชนี้ใช้ localStorage ของเบราว์เซอร์จริง ซึ่งใช้งานได้ปกติเมื่อเปิดไฟล์นี้
+// เป็นเว็บเพจทั่วไป (เช่น GitHub Pages, Netlify หรือเปิดจากเครื่อง) แต่ localStorage
+// จะไม่ทำงานถ้าเปิดผ่านหน้าต่างพรีวิว Artifact ภายในแชท Claude.ai โดยตรง
+
+function todayKey(ts){
+  const d = new Date(ts);
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+function sheetConfigured(){
+  return SHEET_API_URL && SHEET_API_URL.indexOf('PASTE_YOUR_WEB_APP_URL_HERE') === -1;
+}
+
+function loadCache(){
+  try{
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveCache(recs){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify(recs)); }catch(e){}
+}
+function loadPending(){
+  try{
+    const raw = localStorage.getItem(PENDING_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function savePending(list){
+  try{ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+function setSyncBanner(show, text){
+  const el = document.getElementById('sync-banner');
+  if(text) document.getElementById('sync-banner-text').textContent = text;
+  el.classList.toggle('show', !!show);
+}
+
+function updatePendingBadge(){
+  const el = document.getElementById('pending-badge');
+  if(pending.length > 0){
+    el.textContent = `⏳ รอซิงค์ขึ้น Google Sheet ${pending.length} รายการ`;
+    el.classList.add('show');
+  }else{
+    el.classList.remove('show');
+  }
+}
+
+// โหลดข้อมูลจาก Google Sheet จริง (เรียกเบื้องหลัง ไม่บล็อกหน้าจอ)
+async function fetchFromSheet(){
+  if(!sheetConfigured()) return null;
+  const res = await fetch(SHEET_API_URL);
+  const data = await res.json();
+  return (data.records || []).map(r => ({
+    id: r.id,
+    queue: Number(r.queue),
+    size: r.size,
+    sizeLabel: r.sizeLabel,
+    price: Number(r.price),
+    method: r.method,
+    ts: Number(r.ts),
+    durationSec: r.durationSec !== undefined && r.durationSec !== '' ? Number(r.durationSec) : null
+  }));
+}
+
+// รวมข้อมูลจาก Sheet กับรายการที่ยังรอซิงค์ (กันไม่ให้ของที่ยังส่งไม่สำเร็จหายไปจากหน้าจอ)
+function mergeWithPending(networkRecords){
+  const pendingIds = new Set(pending.map(p=>p.id));
+  const filtered = networkRecords.filter(r=>!pendingIds.has(r.id));
+  return filtered.concat(pending);
+}
+
+async function saveRecordToSheet(record){
+  if(!sheetConfigured()) return false;
+  await fetch(SHEET_API_URL, {
+    // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS preflight ของ Apps Script
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(record)
+  });
+  return true;
+}
+
+// พยายามส่งรายการที่ค้างอยู่ในคิว pending อีกครั้ง
+async function flushPending(){
+  if(pending.length === 0 || !sheetConfigured()) return;
+  const stillPending = [];
+  for(const rec of pending){
+    try{
+      await saveRecordToSheet(rec);
+    }catch(e){
+      stillPending.push(rec);
+    }
+  }
+  pending = stillPending;
+  savePending(pending);
+  updatePendingBadge();
+  if(pending.length === 0 && retryTimer){
+    clearInterval(retryTimer);
+    retryTimer = null;
+  }
+}
+
+function startRetryLoop(){
+  if(retryTimer) return;
+  retryTimer = setInterval(flushPending, 20000); // ลองส่งใหม่ทุก 20 วินาที
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function buildSizeGrid(){
+  const grid = document.getElementById('size-grid');
+  grid.innerHTML = '';
+  SIZES.forEach(sz=>{
+    const card = document.createElement('div');
+    card.className = 'size-card';
+    card.onclick = ()=>startWash(sz);
+    card.innerHTML = `
+      <div class="icon-chip">${ICONS[sz.key]}</div>
+      <div class="size-info">
+        <div class="size-name">${sz.key} · ${sz.label}</div>
+        <div class="size-desc">แตะเพื่อรับคันนี้เข้าคิว</div>
+      </div>
+      <div class="size-price">${sz.price}฿</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function todayCount(){
+  const today = todayKey(Date.now());
+  return records.filter(r=>todayKey(r.ts)===today).length;
+}
+
+function startWash(sz){
+  dailyCounter += 1;
+  activeOrders.push({
+    id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+    queue: dailyCounter,
+    size: sz.key,
+    sizeLabel: sz.label,
+    price: sz.price,
+    status: 'washing',
+    method: null,
+    startTime: Date.now(),
+    durationSec: null
+  });
+  renderCurrentCard();
+}
+
+function findOrder(id){ return activeOrders.find(o=>o.id===id); }
+
+function formatDuration(sec){
+  sec = Math.max(0, Math.floor(sec));
+  const m = Math.floor(sec/60);
+  const s = sec%60;
+  return m + ':' + String(s).padStart(2,'0');
+}
+
+function markCarOut(id){
+  const o = findOrder(id);
+  if(!o) return;
+  o.durationSec = Math.floor((Date.now() - o.startTime)/1000); // หยุดจับเวลา ณ ตอนรถออก
+  o.status = 'payment';
+  renderCurrentCard();
+}
+
+function selectPayment(id, method){
+  const o = findOrder(id);
+  if(!o) return;
+  o.method = method;
+  renderCurrentCard();
+}
+
+async function confirmPayment(id){
+  const o = findOrder(id);
+  if(!o || !o.method) return;
+  const record = {
+    id: o.id,
+    queue: o.queue,
+    size: o.size,
+    sizeLabel: o.sizeLabel,
+    price: o.price,
+    method: o.method,
+    ts: Date.now(),
+    durationSec: o.durationSec != null ? o.durationSec : Math.floor((Date.now()-o.startTime)/1000)
+  };
+  activeOrders = activeOrders.filter(x=>x.id!==id);
+  renderCurrentCard(); // อัปเดตหน้าจอทันทีโดยไม่ต้องรอเครือข่าย
+
+  // นับรวมในสรุปยอด/รายงานทันที ไม่ต้องรอ Google Sheet ตอบกลับ
+  records.push(record);
+  saveCache(records);
+  renderSummary();
+  showReport(activeRange);
+
+  if(!sheetConfigured()){
+    showToast('ยังไม่ได้ตั้งค่า Google Sheet — ข้อมูลนี้จะไม่ถูกส่งขึ้นชีต');
+    return;
+  }
+
+  try{
+    await saveRecordToSheet(record);
+    showToast('บันทึกข้อมูลลง Google Sheet เรียบร้อย');
+  }catch(e){
+    pending.push(record);
+    savePending(pending);
+    updatePendingBadge();
+    startRetryLoop();
+    showToast('เน็ตหลุดหรือส่งไม่สำเร็จ จะลองส่งใหม่ให้อัตโนมัติ');
+  }
+}
+
+function renderCurrentCard(){
+  const body = document.getElementById('current-body');
+  if(activeOrders.length === 0){
+    body.innerHTML = `
+      <div class="queue-empty">
+        <span class="queue-empty-emoji">🫧</span>
+        ยังไม่มีคิวที่กำลังล้าง — เลือกขนาดรถด้านบนเพื่อรับรถเข้าคิว (รับได้พร้อมกันหลายคัน)
+      </div>
+    `;
+    return;
+  }
+
+  body.innerHTML = `<div class="order-list">` + activeOrders.map(o=>{
+    if(o.status === 'washing'){
+      return `
+        <div class="order-item">
+          <div class="queue-badge">คิว #${o.queue}</div>
+          <div class="order-row">
+            <div class="order-size">${o.size} · ${o.sizeLabel}</div>
+            <div class="order-price">${o.price} บาท</div>
+          </div>
+          <div class="status-line"><span class="pulse-dot"></span>กำลังล้างอยู่ · <span class="timer-text" id="timer-${o.id}">${formatDuration((Date.now()-o.startTime)/1000)}</span></div>
+          <button class="btn btn-primary btn-block" onclick="markCarOut('${o.id}')">🚙 รถออก</button>
+        </div>
+      `;
+    }
+    return `
+      <div class="order-item">
+        <div class="queue-badge">คิว #${o.queue}</div>
+        <div class="order-row">
+          <div class="order-size">${o.size} · ${o.sizeLabel}</div>
+          <div class="order-price">${o.price} บาท</div>
+        </div>
+        <div class="status-line wait"><span class="pulse-dot"></span>รอชำระเงิน · ⏱ ใช้เวลาล้าง ${formatDuration(o.durationSec)} นาที</div>
+        <div class="pay-grid">
+          <div class="pay-card ${o.method==='เงินสด'?'selected':''}" onclick="selectPayment('${o.id}','เงินสด')">
+            <div class="pay-emoji">💵</div>
+            <div class="pay-label">เงินสด</div>
+          </div>
+          <div class="pay-card ${o.method==='โอน'?'selected':''}" onclick="selectPayment('${o.id}','โอน')">
+            <div class="pay-emoji">🏦</div>
+            <div class="pay-label">โอน</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" ${o.method?'':'disabled'} onclick="confirmPayment('${o.id}')">✅ ยืนยันการชำระเงิน</button>
+      </div>
+    `;
+  }).join('') + `</div>`;
+}
+
+// อัปเดตตัวเลขจับเวลาของคันที่ยังกำลังล้างอยู่ทุกวินาที โดยไม่ต้อง re-render ทั้งการ์ด
+function tickTimers(){
+  activeOrders.forEach(o=>{
+    if(o.status !== 'washing') return;
+    const el = document.getElementById('timer-'+o.id);
+    if(el) el.textContent = formatDuration((Date.now()-o.startTime)/1000);
+  });
+}
+
+function renderSummary(){
+  const today = todayKey(Date.now());
+  const todays = records.filter(r=>todayKey(r.ts)===today);
+  const total = todays.reduce((s,r)=>s+r.price,0);
+  document.getElementById('sum-count').textContent = todays.length + ' คัน';
+  document.getElementById('sum-total').textContent = total.toLocaleString() + ' บาท';
+}
+
+function openHistory(){
+  document.getElementById('history-modal').classList.add('open');
+  showReport(activeRange);
+}
+function closeHistory(){
+  document.getElementById('history-modal').classList.remove('open');
+}
+function closeHistoryOnBackdrop(e){
+  if(e.target.id === 'history-modal') closeHistory();
+}
+
+function showReport(days){
+  activeRange = days;
+  document.querySelectorAll('.range-btn').forEach(b=>{
+    b.classList.toggle('active', Number(b.dataset.range) === days);
+  });
+  const cutoff = Date.now() - days*24*60*60*1000;
+  const inRange = records.filter(r=>r.ts >= cutoff);
+
+  const count = inRange.length;
+  const total = inRange.reduce((s,r)=>s+r.price,0);
+
+  const bySize = {S:{count:0,total:0}, M:{count:0,total:0}, L:{count:0,total:0}};
+  inRange.forEach(r=>{
+    if(bySize[r.size]){ bySize[r.size].count++; bySize[r.size].total += r.price; }
+  });
+
+  const cash = inRange.filter(r=>r.method==='เงินสด');
+  const transfer = inRange.filter(r=>r.method==='โอน');
+  const cashTotal = cash.reduce((s,r)=>s+r.price,0);
+  const transferTotal = transfer.reduce((s,r)=>s+r.price,0);
+
+  const withDuration = inRange.filter(r=>r.durationSec != null && !isNaN(r.durationSec));
+  const avgDurationSec = withDuration.length
+    ? withDuration.reduce((s,r)=>s+r.durationSec,0) / withDuration.length
+    : null;
+
+  const html = `
+    <div class="stat-grid" style="margin-bottom:6px;">
+      <div class="stat-box">
+        <div class="stat-label">จำนวนรถ</div>
+        <div class="stat-value">${count} คัน</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ยอดเงินรวม</div>
+        <div class="stat-value red">${total.toLocaleString()} บาท</div>
+      </div>
+    </div>
+    ${avgDurationSec != null ? `
+    <div class="report-line"><span>⏱ เวลาเฉลี่ยต่อคัน</span><b>${formatDuration(avgDurationSec)} นาที</b></div>
+    ` : ''}
+    <div class="report-sub">แยกตามขนาดรถ</div>
+    ${SIZES.map(sz=>`
+      <div class="report-line">
+        <span>${sz.key} · ${sz.label}</span>
+        <b>${bySize[sz.key].count} คัน · ${bySize[sz.key].total.toLocaleString()}฿</b>
+      </div>
+    `).join('')}
+    <div class="report-sub">แยกตามวิธีชำระเงิน</div>
+    <div class="report-line"><span>💵 เงินสด</span><b>${cash.length} คัน · ${cashTotal.toLocaleString()}฿</b></div>
+    <div class="report-line"><span>🏦 โอน</span><b>${transfer.length} คัน · ${transferTotal.toLocaleString()}฿</b></div>
+  `;
+  document.getElementById('report-area').innerHTML = html;
+}
+
+(async function init(){
+  buildSizeGrid();
+  renderCurrentCard();
+  setInterval(tickTimers, 1000); // อัปเดตตัวจับเวลาของคิวที่กำลังล้างอยู่ทุกวินาที
+
+  // 1) โหลดจากแคชในเครื่องก่อน ให้หน้าจอขึ้นทันทีไม่มีอาการหน่วง
+  pending = loadPending();
+  records = mergeWithPending(loadCache());
+  dailyCounter = todayCount();
+  renderSummary();
+  updatePendingBadge();
+
+  // 2) ซิงค์กับ Google Sheet จริงเบื้องหลัง
+  if(!sheetConfigured()){
+    showToast('ยังไม่ได้ตั้งค่า Google Sheet — ดูคำแนะนำใน SHEET_API_URL');
+  }else{
+    setSyncBanner(true, 'กำลังซิงค์ข้อมูลล่าสุด...');
+    try{
+      const fresh = await fetchFromSheet();
+      if(fresh){
+        records = mergeWithPending(fresh);
+        saveCache(fresh); // แคชเฉพาะข้อมูลที่ยืนยันแล้วจาก Sheet
+        dailyCounter = todayCount();
+        renderSummary();
+      }
+    }catch(e){
+      showToast('ซิงค์กับ Google Sheet ไม่สำเร็จ ใช้ข้อมูลที่แคชไว้ล่าสุดไปก่อน');
+    }
+    setSyncBanner(false);
+  }
+
+  // 3) ถ้ามีรายการค้างส่งจากครั้งก่อน ลองส่งใหม่
+  if(pending.length > 0){
+    startRetryLoop();
+    flushPending();
+  }
+})();
+</script>
+</body>
+</html>
