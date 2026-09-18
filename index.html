@@ -160,6 +160,22 @@
   .report-line:last-child{border-bottom:none;}
   .report-sub{font-size:11.5px;color:var(--ink-soft);font-weight:700;margin:10px 0 2px;}
 
+  .peak-callout{
+    background:#FFF1EF;border:1px solid #F5C4BD;color:var(--red-deep);
+    font-size:13px;font-weight:600;border-radius:12px;padding:9px 12px;margin:6px 0 10px;
+  }
+  .hour-bars{display:flex;flex-direction:column;gap:5px;margin-top:2px;}
+  .hour-bar-row{display:flex;align-items:center;gap:8px;}
+  .hour-bar-label{font-size:11px;color:var(--ink-soft);width:38px;flex-shrink:0;}
+  .hour-bar-track{
+    flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden;
+  }
+  .hour-bar-fill{
+    display:block;height:100%;background:var(--yellow-deep);border-radius:6px;
+  }
+  .hour-bar-fill.peak{background:var(--red);}
+  .hour-bar-count{font-size:11px;color:var(--ink);font-weight:700;width:20px;text-align:right;flex-shrink:0;}
+
   .toast{
     position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;
@@ -636,6 +652,20 @@ function showReport(days){
     ? withDuration.reduce((s,r)=>s+r.durationSec,0) / withDuration.length
     : null;
 
+  // ช่วงเวลาที่รถเข้ามากที่สุด — ใช้เวลาที่รถ "เข้าคิว" จริง (ts ตอนจ่ายเงิน ลบเวลาที่ใช้ล้าง)
+  const hourCounts = new Array(24).fill(0);
+  inRange.forEach(r=>{
+    const entryTs = r.ts - ((r.durationSec || 0) * 1000);
+    const hour = new Date(entryTs).getHours();
+    hourCounts[hour]++;
+  });
+  const maxHourCount = Math.max(0, ...hourCounts);
+  const peakHours = hourCounts.map((c,h)=>({h,c})).filter(x=>x.c===maxHourCount && maxHourCount>0);
+  const peakLabel = peakHours.length
+    ? peakHours.map(p=>String(p.h).padStart(2,'0')+':00').join(', ')
+    : null;
+  const hourRows = hourCounts.map((c,h)=>({h,c})).filter(x=>x.c>0);
+
   const html = `
     <div class="stat-grid" style="margin-bottom:6px;">
       <div class="stat-box">
@@ -660,6 +690,21 @@ function showReport(days){
     <div class="report-sub">แยกตามวิธีชำระเงิน</div>
     <div class="report-line"><span>💵 เงินสด</span><b>${cash.length} คัน · ${cashTotal.toLocaleString()}฿</b></div>
     <div class="report-line"><span>🏦 โอน</span><b>${transfer.length} คัน · ${transferTotal.toLocaleString()}฿</b></div>
+    <div class="report-sub">⏰ ช่วงเวลาที่รถเข้ามากที่สุด</div>
+    ${peakLabel ? `
+      <div class="peak-callout">🔥 ช่วงพีค: <b>${peakLabel} น.</b> (${maxHourCount} คัน)</div>
+    ` : `<div class="report-line"><span>ยังไม่มีข้อมูลพอสำหรับช่วงนี้</span></div>`}
+    ${hourRows.length ? `
+      <div class="hour-bars">
+        ${hourRows.map(x=>`
+          <div class="hour-bar-row">
+            <span class="hour-bar-label">${String(x.h).padStart(2,'0')}:00</span>
+            <span class="hour-bar-track"><span class="hour-bar-fill ${x.c===maxHourCount?'peak':''}" style="width:${Math.max(8, (x.c/maxHourCount)*100)}%;"></span></span>
+            <span class="hour-bar-count">${x.c}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
   `;
   document.getElementById('report-area').innerHTML = html;
 }
