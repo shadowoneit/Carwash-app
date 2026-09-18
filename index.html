@@ -216,6 +216,9 @@
   }
   @keyframes slideUp{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
   .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .export-grid{display:flex;gap:10px;margin-top:16px;}
+  .export-grid .btn{flex:1;font-size:13px;padding:11px 8px;}
+  .export-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:8px;line-height:1.5;}
   .modal-close{
     background:var(--line);border:none;width:30px;height:30px;border-radius:10px;
     font-size:16px;cursor:pointer;color:var(--ink-soft);
@@ -285,6 +288,11 @@
         <div class="range-btn" data-range="30" onclick="showReport(30)">1 เดือน</div>
       </div>
       <div id="report-area"></div>
+      <div class="export-grid">
+        <button class="btn btn-ghost" id="export-pdf-btn" onclick="exportPDF(false)">📄 Export PDF</button>
+        <button class="btn btn-primary" id="email-pdf-btn" onclick="exportPDF(true)">✉️ ส่งเข้า Email</button>
+      </div>
+      <div class="export-note">PDF จะใช้ข้อมูลที่บันทึกอยู่ใน Google Sheet โดยตรง</div>
     </div>
   </div>
 </div>
@@ -625,6 +633,52 @@ function closeHistory(){
 function closeHistoryOnBackdrop(e){
   if(e.target.id === 'history-modal') closeHistory();
 }
+
+
+  async function exportPDF(sendEmail){
+    const days = activeRange || 1;
+    const btnPDF = document.getElementById('export-pdf-btn');
+    const btnEmail = document.getElementById('email-pdf-btn');
+
+    if(!sheetConfigured()){
+      showToast('ยังไม่ได้ตั้งค่า Google Sheet');
+      return;
+    }
+
+    btnPDF.disabled = true;
+    btnEmail.disabled = true;
+    setSyncBanner(true, sendEmail ? 'กำลังสร้าง PDF และส่ง Email...' : 'กำลังสร้าง PDF...');
+
+    try{
+      const res = await fetch(SHEET_API_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action: 'exportPDF',
+          days: days
+        })
+      });
+
+      const data = await res.json();
+
+      if(data.status !== 'ok'){
+        throw new Error(data.message || 'ไม่สามารถสร้างรายงานได้');
+      }
+
+      showToast(sendEmail ? 'ส่ง PDF เข้า Email เรียบร้อยแล้ว' : 'สร้าง PDF เรียบร้อย');
+
+      if(data.fileUrl){
+        window.open(data.fileUrl, '_blank');
+      }
+
+    }catch(e){
+      showToast('Export ไม่สำเร็จ: ' + (e.message || 'เกิดข้อผิดพลาด'));
+    }finally{
+      btnPDF.disabled = false;
+      btnEmail.disabled = false;
+      setSyncBanner(false);
+    }
+  }
 
 function showReport(days){
   activeRange = days;
