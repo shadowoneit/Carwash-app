@@ -223,6 +223,17 @@
     background:var(--line);border:none;width:30px;height:30px;border-radius:10px;
     font-size:16px;cursor:pointer;color:var(--ink-soft);
   }
+
+  .email-modal-backdrop{position:fixed;inset:0;background:rgba(36,27,24,.5);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+  .email-modal-backdrop.open{display:flex;}
+  .email-modal-sheet{background:#fff;width:min(440px,100%);border-radius:22px 22px 0 0;padding:20px;animation:slideUp .25s ease;}
+  .email-title{font-family:'Baloo 2',sans-serif;font-size:19px;font-weight:800;}
+  .email-subtitle{color:var(--ink-soft);font-size:12.5px;margin:3px 0 14px;}
+  .email-input{width:100%;padding:13px 14px;border:2px solid var(--line);border-radius:13px;font-family:'Inter',sans-serif;font-size:14px;outline:none;background:#FFFDF8;}
+  .email-input:focus{border-color:var(--red);}
+  .email-error{color:var(--red-deep);font-size:12px;font-weight:700;min-height:18px;margin-top:6px;}
+  .email-actions{display:flex;gap:10px;margin-top:8px;}
+  .email-actions .btn{flex:1;}
 </style>
 </head>
 <body>
@@ -288,11 +299,27 @@
         <div class="range-btn" data-range="30" onclick="showReport(30)">1 เดือน</div>
       </div>
       <div id="report-area"></div>
-      <div class="export-grid">
-        <button class="btn btn-ghost" id="export-pdf-btn" onclick="exportPDF(false)">📄 Export PDF</button>
-        <button class="btn btn-primary" id="email-pdf-btn" onclick="exportPDF(true)">✉️ ส่งเข้า Email</button>
+      <button class="btn btn-primary btn-block" id="export-pdf-btn" onclick="openEmailModal()">📄 Export PDF</button>
+      <div class="export-note">กด Export PDF แล้วกรอก Email ผู้รับ</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: กรอก Email ก่อนส่ง PDF -->
+<div class="email-modal-backdrop" id="email-modal" onclick="closeEmailOnBackdrop(event)">
+  <div class="email-modal-sheet">
+    <div class="modal-head">
+      <div>
+        <div class="email-title">📧 ส่งรายงาน PDF</div>
+        <div class="email-subtitle" id="email-report-period">รายงานย้อนหลัง 1 วัน</div>
       </div>
-      <div class="export-note">PDF จะใช้ข้อมูลที่บันทึกอยู่ใน Google Sheet โดยตรง</div>
+      <button class="modal-close" onclick="closeEmailModal()">✕</button>
+    </div>
+    <input id="report-email" class="email-input" type="email" inputmode="email" autocomplete="email" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter') sendReportPdf()">
+    <div class="email-error" id="email-error"></div>
+    <div class="email-actions">
+      <button class="btn btn-ghost" onclick="closeEmailModal()">ยกเลิก</button>
+      <button class="btn btn-primary" id="send-pdf-btn" onclick="sendReportPdf()">✉️ ส่ง PDF</button>
     </div>
   </div>
 </div>
@@ -635,48 +662,44 @@ function closeHistoryOnBackdrop(e){
 }
 
 
-  async function exportPDF(sendEmail){
-    const days = activeRange || 1;
-    const btnPDF = document.getElementById('export-pdf-btn');
-    const btnEmail = document.getElementById('email-pdf-btn');
+  function openEmailModal(){
+    const modal=document.getElementById('email-modal');
+    const input=document.getElementById('report-email');
+    document.getElementById('email-error').textContent='';
+    document.getElementById('email-report-period').textContent=
+      'รายงานย้อนหลัง ' + (activeRange===1?'1 วัน':activeRange===7?'7 วัน':'30 วัน');
+    input.value='';
+    modal.classList.add('open');
+    setTimeout(()=>input.focus(),100);
+  }
 
-    if(!sheetConfigured()){
-      showToast('ยังไม่ได้ตั้งค่า Google Sheet');
-      return;
+  function closeEmailModal(){document.getElementById('email-modal').classList.remove('open');}
+  function closeEmailOnBackdrop(e){if(e.target.id==='email-modal') closeEmailModal();}
+
+  async function sendReportPdf(){
+    const input=document.getElementById('report-email');
+    const error=document.getElementById('email-error');
+    const btn=document.getElementById('send-pdf-btn');
+    const email=input.value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      error.textContent='กรุณากรอก Email ให้ถูกต้อง'; input.focus(); return;
     }
-
-    btnPDF.disabled = true;
-    btnEmail.disabled = true;
-    setSyncBanner(true, sendEmail ? 'กำลังสร้าง PDF และส่ง Email...' : 'กำลังสร้าง PDF...');
-
+    btn.disabled=true; btn.innerHTML='⏳ กำลังส่ง...'; error.textContent='';
+    setSyncBanner(true,'กำลังสร้าง PDF และส่ง Email...');
     try{
-      const res = await fetch(SHEET_API_URL, {
-        method: 'POST',
-        headers: {'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action: 'exportPDF',
-          days: days
-        })
+      const res=await fetch(SHEET_API_URL,{
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({action:'exportPDF',days:activeRange,email:email})
       });
-
-      const data = await res.json();
-
-      if(data.status !== 'ok'){
-        throw new Error(data.message || 'ไม่สามารถสร้างรายงานได้');
-      }
-
-      showToast(sendEmail ? 'ส่ง PDF เข้า Email เรียบร้อยแล้ว' : 'สร้าง PDF เรียบร้อย');
-
-      if(data.fileUrl){
-        window.open(data.fileUrl, '_blank');
-      }
-
+      const data=await res.json();
+      if(data.status!=='ok') throw new Error(data.message||'ส่ง PDF ไม่สำเร็จ');
+      closeEmailModal();
+      showToast('✉️ ส่ง PDF ไปยัง '+email+' สำเร็จ');
     }catch(e){
-      showToast('Export ไม่สำเร็จ: ' + (e.message || 'เกิดข้อผิดพลาด'));
+      error.textContent=e.message||'ส่ง PDF ไม่สำเร็จ';
+      showToast('ส่ง PDF ไม่สำเร็จ');
     }finally{
-      btnPDF.disabled = false;
-      btnEmail.disabled = false;
-      setSyncBanner(false);
+      btn.disabled=false; btn.innerHTML='✉️ ส่ง PDF'; setSyncBanner(false);
     }
   }
 
