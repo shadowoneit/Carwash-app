@@ -325,6 +325,25 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- MODAL: ใส่รหัสผ่านก่อนดูรายงานย้อนหลัง -->
+<div class="email-modal-backdrop" id="pin-modal" onclick="closePinOnBackdrop(event)">
+  <div class="email-modal-sheet">
+    <div class="modal-head">
+      <div>
+        <div class="email-title">🔒 ใส่รหัสผ่าน</div>
+        <div class="email-subtitle">กรอกรหัสเพื่อดูรายงานย้อนหลัง</div>
+      </div>
+      <button class="modal-close" onclick="closePinModal()">✕</button>
+    </div>
+    <input id="history-pin-input" class="email-input" type="password" inputmode="numeric" autocomplete="off" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter') submitHistoryPin()">
+    <div class="email-error" id="pin-error"></div>
+    <div class="email-actions">
+      <button class="btn btn-ghost" onclick="closePinModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitHistoryPin()">🔓 ปลดล็อก</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ICONS = {
   S: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 24C5 24 6 15 15 14L21 13.5C24 8 29 5 36 5C43 5 47 8 49 13.5L55 14.5C59.5 15.5 60 20 60 24H5Z" fill="currentColor"/><circle cx="18" cy="26" r="5.5" fill="#241B18"/><circle cx="47" cy="26" r="5.5" fill="#241B18"/></svg>`,
@@ -650,7 +669,40 @@ function renderSummary(){
   document.getElementById('sum-total').textContent = total.toLocaleString() + ' บาท';
 }
 
+// ==== ตั้งค่ารหัสผ่านสำหรับดูรายงานย้อนหลัง ====
+// เปลี่ยนรหัสผ่านตรงนี้ได้เลย (ค่าเริ่มต้นคือ 1234)
+const HISTORY_PIN = "1234";
+
 function openHistory(){
+  openPinModal();
+}
+
+function openPinModal(){
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('history-pin-input').value = '';
+  document.getElementById('pin-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('history-pin-input').focus(), 100);
+}
+function closePinModal(){
+  document.getElementById('pin-modal').classList.remove('open');
+}
+function closePinOnBackdrop(e){
+  if(e.target.id === 'pin-modal') closePinModal();
+}
+function submitHistoryPin(){
+  const input = document.getElementById('history-pin-input');
+  const error = document.getElementById('pin-error');
+  if(input.value === HISTORY_PIN){
+    closePinModal();
+    actuallyOpenHistory();
+  }else{
+    error.textContent = 'รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง';
+    input.value = '';
+    input.focus();
+  }
+}
+
+function actuallyOpenHistory(){
   document.getElementById('history-modal').classList.add('open');
   showReport(activeRange);
 }
