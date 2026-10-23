@@ -154,6 +154,17 @@
     flex:1;background:var(--paper);border:2px solid var(--line);border-radius:12px;
     padding:9px 6px;text-align:center;font-weight:700;font-size:12.5px;cursor:pointer;
   }
+  .date-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .date-input{
+    flex:1;min-width:0;font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;
+    padding:9px 10px;border:2px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);
+  }
+  .date-input.active{border-color:var(--red);background:#FFF1EF;color:var(--red-deep);}
+  .date-nav{
+    width:38px;height:38px;border-radius:12px;border:2px solid var(--line);background:var(--paper);
+    font-size:16px;font-weight:700;cursor:pointer;color:var(--ink);flex-shrink:0;
+  }
+  .date-nav:hover{border-color:var(--red);}
   .range-btn.active{border-color:var(--red);background:#FFF1EF;color:var(--red-deep);}
 
   .report-line{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--line);}
@@ -279,6 +290,8 @@
           <div class="stat-value red" id="sum-total">0 บาท</div>
         </div>
       </div>
+      <div class="report-sub">แยกตามขนาดรถ</div>
+      <div id="sum-by-size"></div>
       <div class="pending-badge" id="pending-badge">⏳ รอซิงค์ขึ้น Google Sheet 0 รายการ</div>
     </div>
 
@@ -297,6 +310,11 @@
         <div class="range-btn" data-range="1" onclick="showReport(1)">1 วัน</div>
         <div class="range-btn" data-range="7" onclick="showReport(7)">7 วัน</div>
         <div class="range-btn" data-range="30" onclick="showReport(30)">1 เดือน</div>
+      </div>
+      <div class="date-row">
+        <button class="date-nav" onclick="shiftReportDate(-1)" aria-label="วันก่อนหน้า">‹</button>
+        <input type="date" class="date-input" id="report-date" onchange="showReportDate(this.value)">
+        <button class="date-nav" onclick="shiftReportDate(1)" aria-label="วันถัดไป">›</button>
       </div>
       <div id="report-area"></div>
       <button class="btn btn-primary btn-block" id="export-pdf-btn" onclick="openEmailModal()">📄 Export PDF</button>
@@ -346,12 +364,14 @@
 
 <script>
 const ICONS = {
+  MC: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="13" cy="25" r="6" stroke="#241B18" stroke-width="3"/><circle cx="51" cy="25" r="6" stroke="#241B18" stroke-width="3"/><path d="M13 25L22 14H34L40 22H26L13 25Z" fill="currentColor"/><path d="M34 14L38 8H45" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 22L51 25" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="20" y="10" width="11" height="4" rx="2" fill="#241B18"/></svg>`,
   S: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 24C5 24 6 15 15 14L21 13.5C24 8 29 5 36 5C43 5 47 8 49 13.5L55 14.5C59.5 15.5 60 20 60 24H5Z" fill="currentColor"/><circle cx="18" cy="26" r="5.5" fill="#241B18"/><circle cx="47" cy="26" r="5.5" fill="#241B18"/></svg>`,
   M: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24V17C4 15 5.5 13.5 7.5 13.5H24C26 8.5 30 6 36 6C41 6 44 8.5 45.5 13.5H50V24H4Z" fill="currentColor"/><path d="M45.5 13.5H58C60 13.5 61 15 61 17V24H45.5V13.5Z" fill="currentColor" fill-opacity="0.55"/><circle cx="17" cy="26" r="5.5" fill="#241B18"/><circle cx="48" cy="26" r="5.5" fill="#241B18"/></svg>`,
   L: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24V12C4 9 6.5 7 9.5 7H50C55 7 59 11 59 16V24H4Z" fill="currentColor"/><rect x="4" y="13" width="14" height="9" rx="1.5" fill="#241B18" fill-opacity="0.18"/><circle cx="18" cy="26" r="5.5" fill="#241B18"/><circle cx="48" cy="26" r="5.5" fill="#241B18"/></svg>`
 };
 
 const SIZES = [
+  {key:'MC', label:'มอเตอร์ไซค์', price:50},
   {key:'S', label:'เก๋งเล็ก', price:60},
   {key:'M', label:'กระบะ / SUV', price:79},
   {key:'L', label:'Van', price:89},
@@ -366,6 +386,7 @@ let activeOrders = []; // [{id, queue, size, sizeLabel, price, status:'washing'|
 let dailyCounter = 0;
 let records = [];
 let activeRange = 1;
+let selectedDate = null; // 'YYYY-MM-DD' เมื่อเลือกจากปฏิทิน
 
 const CACHE_KEY = 'carwash_cache_v1';
 const PENDING_KEY = 'carwash_pending_v1';
@@ -667,6 +688,11 @@ function renderSummary(){
   const total = todays.reduce((s,r)=>s+r.price,0);
   document.getElementById('sum-count').textContent = todays.length + ' คัน';
   document.getElementById('sum-total').textContent = total.toLocaleString() + ' บาท';
+  document.getElementById('sum-by-size').innerHTML = SIZES.map(sz=>{
+    const list = todays.filter(r=>r.size===sz.key);
+    const sub = list.reduce((s,r)=>s+r.price,0);
+    return `<div class="report-line"><span>${sz.key} · ${sz.label}</span><b>${list.length} คัน · ${sub.toLocaleString()}฿</b></div>`;
+  }).join('');
 }
 
 // ==== ตั้งค่ารหัสผ่านสำหรับดูรายงานย้อนหลัง ====
@@ -719,7 +745,7 @@ function closeHistoryOnBackdrop(e){
     const input=document.getElementById('report-email');
     document.getElementById('email-error').textContent='';
     document.getElementById('email-report-period').textContent=
-      'รายงานย้อนหลัง ' + (activeRange===1?'1 วัน':activeRange===7?'7 วัน':'30 วัน');
+      'รายงานย้อนหลัง ' + rangeLabel();
     input.value='';
     modal.classList.add('open');
     setTimeout(()=>input.focus(),100);
@@ -741,7 +767,7 @@ function closeHistoryOnBackdrop(e){
     try{
       const res=await fetch(SHEET_API_URL,{
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({action:'exportPDF',days:activeRange,email:email})
+        body:JSON.stringify({action:'exportPDF',days:(activeRange==='date'?1:activeRange),date:(activeRange==='date'?selectedDate:null),email:email})
       });
       const data=await res.json();
       if(data.status!=='ok') throw new Error(data.message||'ส่ง PDF ไม่สำเร็จ');
@@ -755,18 +781,59 @@ function closeHistoryOnBackdrop(e){
     }
   }
 
+function todayInputValue(){
+  const t = new Date();
+  return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+}
+
+function rangeLabel(){
+  if(activeRange==='date' && selectedDate){
+    const [y,m,d] = selectedDate.split('-').map(Number);
+    return 'วันที่ ' + d + '/' + m + '/' + (y+543);
+  }
+  return activeRange===1?'1 วัน':activeRange===7?'7 วัน':'1 เดือน';
+}
+
+function showReportDate(value){
+  if(!value) return;
+  selectedDate = value;
+  showReport('date');
+}
+
+function shiftReportDate(delta){
+  const base = selectedDate ? new Date(selectedDate+'T00:00:00') : new Date();
+  base.setDate(base.getDate()+delta);
+  if(base.getTime() > Date.now()) return; // ไม่ให้เลือกวันในอนาคต
+  const v = base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')+'-'+String(base.getDate()).padStart(2,'0');
+  showReportDate(v);
+}
+
 function showReport(days){
   activeRange = days;
+  const isDate = days === 'date' && selectedDate;
   document.querySelectorAll('.range-btn').forEach(b=>{
-    b.classList.toggle('active', Number(b.dataset.range) === days);
+    b.classList.toggle('active', !isDate && Number(b.dataset.range) === days);
   });
-  const cutoff = Date.now() - days*24*60*60*1000;
-  const inRange = records.filter(r=>r.ts >= cutoff);
+  const dateInput = document.getElementById('report-date');
+  dateInput.max = todayInputValue();
+  dateInput.classList.toggle('active', !!isDate);
+  dateInput.value = isDate ? selectedDate : '';
+
+  let inRange;
+  if(isDate){
+    const [y,m,d] = selectedDate.split('-').map(Number);
+    const key = y+'-'+m+'-'+d;
+    inRange = records.filter(r=>todayKey(r.ts)===key);
+  }else{
+    const cutoff = Date.now() - days*24*60*60*1000;
+    inRange = records.filter(r=>r.ts >= cutoff);
+  }
 
   const count = inRange.length;
   const total = inRange.reduce((s,r)=>s+r.price,0);
 
-  const bySize = {S:{count:0,total:0}, M:{count:0,total:0}, L:{count:0,total:0}};
+  const bySize = {};
+  SIZES.forEach(sz=>{ bySize[sz.key] = {count:0,total:0}; });
   inRange.forEach(r=>{
     if(bySize[r.size]){ bySize[r.size].count++; bySize[r.size].total += r.price; }
   });
