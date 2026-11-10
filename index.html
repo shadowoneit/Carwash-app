@@ -165,6 +165,27 @@
     font-size:16px;font-weight:700;cursor:pointer;color:var(--ink);flex-shrink:0;
   }
   .date-nav:hover{border-color:var(--red);}
+  .pay-table{margin-top:12px;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+  .pay-table-title{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:14px;padding:8px 12px;background:#FFF6E0;}
+  .pay-table-title.transfer{background:#EAF3FF;}
+  .pt-row{display:grid;grid-template-columns:1.3fr .7fr 1fr;gap:6px;padding:6px 12px;font-size:13px;border-top:1px solid var(--line);}
+  .pt-row span:nth-child(2){text-align:center;}
+  .pt-row span:nth-child(3){text-align:right;}
+  .pt-row em{font-style:normal;color:var(--ink-soft);font-size:11px;margin-left:4px;}
+  .pt-head{font-size:11px;color:var(--ink-soft);font-weight:700;border-top:none;}
+  .pt-total{font-weight:800;background:var(--panel);}
+  .exp-line{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line);}
+  .exp-line .exp-name{flex:1;}
+  .exp-line .exp-amt{font-weight:700;color:var(--red-deep);}
+  .exp-del{border:none;background:none;color:var(--ink-soft);font-size:14px;cursor:pointer;padding:2px 6px;}
+  .exp-del:hover{color:var(--red-deep);}
+  .net-box{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--yellow);font-weight:800;font-size:15px;}
+  .net-line{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 2px;}
+  .net-line.neg b{color:var(--red-deep);}
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
+  .chip{border:2px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;background:var(--paper);cursor:pointer;font-family:'Inter',sans-serif;color:var(--ink);}
+  .chip:hover{border-color:var(--red);}
+  .email-input + .email-input{margin-top:10px;}
   .range-btn.active{border-color:var(--red);background:#FFF1EF;color:var(--red-deep);}
 
   .report-line{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--line);}
@@ -290,8 +311,8 @@
           <div class="stat-value red" id="sum-total">0 บาท</div>
         </div>
       </div>
-      <div class="report-sub">แยกตามขนาดรถ</div>
       <div id="sum-by-size"></div>
+      <div id="sum-expense"></div>
       <div class="pending-badge" id="pending-badge">⏳ รอซิงค์ขึ้น Google Sheet 0 รายการ</div>
     </div>
 
@@ -362,6 +383,31 @@
   </div>
 </div>
 
+<!-- MODAL: เพิ่มรายจ่าย -->
+<div class="email-modal-backdrop" id="expense-modal" onclick="closeExpenseOnBackdrop(event)">
+  <div class="email-modal-sheet">
+    <div class="modal-head">
+      <div>
+        <div class="email-title">➕ เพิ่มรายจ่าย</div>
+        <div class="email-subtitle">บันทึกรายจ่ายประจำวัน เช่น ค่าน้ำแข็ง ค่าแรง</div>
+      </div>
+      <button class="modal-close" onclick="closeExpenseModal()">✕</button>
+    </div>
+    <div class="chip-row">
+      <button class="chip" onclick="pickExpenseName('ค่าน้ำแข็ง+ค่าน้ำ')">ค่าน้ำแข็ง+ค่าน้ำ</button>
+      <button class="chip" onclick="pickExpenseName('ค่าแรงพาร์ทไทม์')">ค่าแรงพาร์ทไทม์</button>
+    </div>
+    <input id="expense-name" class="email-input" type="text" autocomplete="off" placeholder="รายการ เช่น ค่าน้ำแข็ง+ค่าน้ำ">
+    <input id="expense-amount" class="email-input" type="number" inputmode="decimal" min="0" placeholder="จำนวนเงิน (บาท)" onkeydown="if(event.key==='Enter') submitExpense()">
+    <input id="expense-date" class="email-input" type="date">
+    <div class="email-error" id="expense-error"></div>
+    <div class="email-actions">
+      <button class="btn btn-ghost" onclick="closeExpenseModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitExpense()">💾 บันทึกรายจ่าย</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ICONS = {
   MC: `<svg viewBox="0 0 64 34" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="13" cy="25" r="6" stroke="#241B18" stroke-width="3"/><circle cx="51" cy="25" r="6" stroke="#241B18" stroke-width="3"/><path d="M13 25L22 14H34L40 22H26L13 25Z" fill="currentColor"/><path d="M34 14L38 8H45" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 22L51 25" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="20" y="10" width="11" height="4" rx="2" fill="#241B18"/></svg>`,
@@ -386,6 +432,11 @@ let activeOrders = []; // [{id, queue, size, sizeLabel, price, status:'washing'|
 let dailyCounter = 0;
 let records = [];
 let activeRange = 1;
+let expenses = []; // [{id, ts, name, amount}]
+let pendingExp = []; // งานรายจ่ายที่ยังส่งขึ้น Sheet ไม่สำเร็จ [{op:'add',expense}|{op:'delete',id}]
+let fetchedExpenses = null;
+const EXP_CACHE_KEY = 'carwash_expenses_v1';
+const EXP_PENDING_KEY = 'carwash_pending_exp_v1';
 let selectedDate = null; // 'YYYY-MM-DD' เมื่อเลือกจากปฏิทิน
 
 const CACHE_KEY = 'carwash_cache_v1';
@@ -433,8 +484,9 @@ function setSyncBanner(show, text){
 
 function updatePendingBadge(){
   const el = document.getElementById('pending-badge');
-  if(pending.length > 0){
-    el.textContent = `⏳ รอซิงค์ขึ้น Google Sheet ${pending.length} รายการ`;
+  const pendingTotal = pending.length + pendingExp.length;
+  if(pendingTotal > 0){
+    el.textContent = `⏳ รอซิงค์ขึ้น Google Sheet ${pendingTotal} รายการ`;
     el.classList.add('show');
   }else{
     el.classList.remove('show');
@@ -446,6 +498,9 @@ async function fetchFromSheet(){
   if(!sheetConfigured()) return null;
   const res = await fetch(SHEET_API_URL);
   const data = await res.json();
+  fetchedExpenses = Array.isArray(data.expenses)
+    ? data.expenses.map(x => ({ id:String(x.id), ts:Number(x.ts), name:String(x.name), amount:Number(x.amount) }))
+    : null;
   return (data.records || []).map(r => ({
     id: r.id,
     queue: Number(r.queue),
@@ -478,7 +533,8 @@ async function saveRecordToSheet(record){
 
 // พยายามส่งรายการที่ค้างอยู่ในคิว pending อีกครั้ง
 async function flushPending(){
-  if(pending.length === 0 || !sheetConfigured()) return;
+  if(!sheetConfigured()) return;
+  if(pending.length === 0 && pendingExp.length === 0) return;
   const stillPending = [];
   for(const rec of pending){
     try{
@@ -489,8 +545,19 @@ async function flushPending(){
   }
   pending = stillPending;
   savePending(pending);
+
+  const stillExp = [];
+  for(const op of pendingExp){
+    try{
+      await postExpenseOp(op);
+    }catch(e){
+      stillExp.push(op);
+    }
+  }
+  pendingExp = stillExp;
+  saveExpPending();
   updatePendingBadge();
-  if(pending.length === 0 && retryTimer){
+  if(pending.length === 0 && pendingExp.length === 0 && retryTimer){
     clearInterval(retryTimer);
     retryTimer = null;
   }
@@ -682,17 +749,155 @@ function tickTimers(){
   });
 }
 
+function payTableHtml(title, cls, list){
+  const rows = SIZES.map(sz=>{
+    const l = list.filter(r=>r.size===sz.key);
+    const amt = l.reduce((a,r)=>a+r.price,0);
+    return `<div class="pt-row"><span>${sz.price}<em>${sz.key}</em></span><span>${l.length || '-'}</span><span>${amt ? amt.toLocaleString() : '-'}</span></div>`;
+  }).join('');
+  const totalAmt = list.reduce((a,r)=>a+r.price,0);
+  return `
+    <div class="pay-table">
+      <div class="pay-table-title ${cls}">${title}</div>
+      <div class="pt-row pt-head"><span>ราคา</span><span>จำนวนคัน</span><span>จำนวนเงิน</span></div>
+      ${rows}
+      <div class="pt-row pt-total"><span>รวม</span><span>${list.length}</span><span>${totalAmt.toLocaleString()}</span></div>
+    </div>`;
+}
+
 function renderSummary(){
   const today = todayKey(Date.now());
   const todays = records.filter(r=>todayKey(r.ts)===today);
   const total = todays.reduce((s,r)=>s+r.price,0);
   document.getElementById('sum-count').textContent = todays.length + ' คัน';
   document.getElementById('sum-total').textContent = total.toLocaleString() + ' บาท';
-  document.getElementById('sum-by-size').innerHTML = SIZES.map(sz=>{
-    const list = todays.filter(r=>r.size===sz.key);
-    const sub = list.reduce((s,r)=>s+r.price,0);
-    return `<div class="report-line"><span>${sz.key} · ${sz.label}</span><b>${list.length} คัน · ${sub.toLocaleString()}฿</b></div>`;
-  }).join('');
+
+  const cash = todays.filter(r=>r.method==='เงินสด');
+  const transfer = todays.filter(r=>r.method==='โอน');
+  document.getElementById('sum-by-size').innerHTML =
+    payTableHtml('💵 เงินสด','',cash) + payTableHtml('🏦 โอน','transfer',transfer);
+
+  const todaysExp = expenses.filter(e=>todayKey(e.ts)===today);
+  const expTotal = todaysExp.reduce((s,e)=>s+e.amount,0);
+  const net = total - expTotal;
+  const expRows = todaysExp.length
+    ? todaysExp.map(e=>`<div class="exp-line"><span class="exp-name">${escapeHtml(e.name)}</span><span class="exp-amt">${e.amount.toLocaleString()}</span><button class="exp-del" onclick="deleteExpense('${e.id}')" aria-label="ลบรายจ่าย">✕</button></div>`).join('')
+    : `<div class="queue-empty" style="padding:10px;">ยังไม่มีรายจ่ายวันนี้</div>`;
+  document.getElementById('sum-expense').innerHTML = `
+    <div class="report-sub">รายจ่ายวันนี้</div>
+    ${expRows}
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openExpenseModal()">➕ เพิ่มรายจ่าย</button>
+    <div class="net-line" style="margin-top:12px;"><span>รวมรายรับ (เงินสด+โอน)</span><b>${total.toLocaleString()}</b></div>
+    <div class="net-line neg"><span>หัก รายจ่าย</span><b>${expTotal ? expTotal.toLocaleString() : '-'}</b></div>
+    <div class="net-box"><span>คงเหลือสุทธิ</span><span>${net.toLocaleString()} บาท</span></div>
+  `;
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ==== รายจ่าย ====
+function loadExpCache(){
+  try{ const raw = localStorage.getItem(EXP_CACHE_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+}
+function saveExpCache(list){ try{ localStorage.setItem(EXP_CACHE_KEY, JSON.stringify(list)); }catch(e){} }
+function loadExpPending(){
+  try{ const raw = localStorage.getItem(EXP_PENDING_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+}
+function saveExpPending(){ try{ localStorage.setItem(EXP_PENDING_KEY, JSON.stringify(pendingExp)); }catch(e){} }
+
+// ใส่งานที่ยังค้างส่ง (เพิ่ม/ลบ) ทับข้อมูลที่ได้มา กันรายการหายหรือโผล่กลับมา
+function applyPendingExp(list){
+  let out = list.slice();
+  pendingExp.forEach(op=>{
+    if(op.op==='add'){
+      if(!out.some(e=>e.id===op.expense.id)) out.push(op.expense);
+    }else if(op.op==='delete'){
+      out = out.filter(e=>e.id!==op.id);
+    }
+  });
+  return out;
+}
+
+async function postExpenseOp(op){
+  const body = op.op==='add'
+    ? Object.assign({action:'addExpense'}, op.expense)
+    : {action:'deleteExpense', id:op.id};
+  await fetch(SHEET_API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function sendExpenseOp(op){
+  if(!sheetConfigured()){
+    showToast('ยังไม่ได้ตั้งค่า Google Sheet — รายจ่ายนี้จะไม่ถูกส่งขึ้นชีต');
+    return;
+  }
+  try{
+    await postExpenseOp(op);
+  }catch(e){
+    pendingExp.push(op);
+    saveExpPending();
+    updatePendingBadge();
+    startRetryLoop();
+    showToast('ส่งรายจ่ายไม่สำเร็จ จะลองส่งใหม่ให้อัตโนมัติ');
+  }
+}
+
+function refreshAfterExpenseChange(){
+  renderSummary();
+  if(document.getElementById('history-modal').classList.contains('open')) showReport(activeRange);
+}
+
+function openExpenseModal(dateStr){
+  document.getElementById('expense-name').value = '';
+  document.getElementById('expense-amount').value = '';
+  const d = document.getElementById('expense-date');
+  d.max = todayInputValue();
+  d.value = dateStr || todayInputValue();
+  document.getElementById('expense-error').textContent = '';
+  document.getElementById('expense-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('expense-name').focus(), 100);
+}
+function closeExpenseModal(){
+  document.getElementById('expense-modal').classList.remove('open');
+}
+function closeExpenseOnBackdrop(e){
+  if(e.target.id === 'expense-modal') closeExpenseModal();
+}
+function pickExpenseName(name){
+  document.getElementById('expense-name').value = name;
+  document.getElementById('expense-amount').focus();
+}
+
+async function submitExpense(){
+  const name = document.getElementById('expense-name').value.trim();
+  const amount = Number(document.getElementById('expense-amount').value);
+  const dateVal = document.getElementById('expense-date').value || todayInputValue();
+  const err = document.getElementById('expense-error');
+  if(!name){ err.textContent = 'กรุณาใส่ชื่อรายการ'; return; }
+  if(!(amount > 0)){ err.textContent = 'กรุณาใส่จำนวนเงินมากกว่า 0'; return; }
+  const ts = dateVal === todayInputValue() ? Date.now() : new Date(dateVal+'T12:00:00').getTime();
+  const exp = { id:'e'+Date.now()+'-'+Math.random().toString(36).slice(2,6), ts, name, amount };
+  expenses.push(exp);
+  saveExpCache(expenses);
+  closeExpenseModal();
+  refreshAfterExpenseChange();
+  showToast('บันทึกรายจ่ายแล้ว');
+  await sendExpenseOp({op:'add', expense:exp});
+}
+
+async function deleteExpense(id){
+  const e = expenses.find(x=>x.id===id);
+  if(!e) return;
+  if(!confirm(`ลบรายจ่าย "${e.name}" (${e.amount.toLocaleString()} บาท) ใช่หรือไม่?`)) return;
+  expenses = expenses.filter(x=>x.id!==id);
+  saveExpCache(expenses);
+  refreshAfterExpenseChange();
+  await sendExpenseOp({op:'delete', id});
 }
 
 // ==== ตั้งค่ารหัสผ่านสำหรับดูรายงานย้อนหลัง ====
@@ -829,6 +1034,17 @@ function showReport(days){
     inRange = records.filter(r=>r.ts >= cutoff);
   }
 
+  let expInRange;
+  if(isDate){
+    const [ey,em,ed] = selectedDate.split('-').map(Number);
+    const ekey = ey+'-'+em+'-'+ed;
+    expInRange = expenses.filter(e=>todayKey(e.ts)===ekey);
+  }else{
+    const ecut = Date.now() - days*24*60*60*1000;
+    expInRange = expenses.filter(e=>e.ts >= ecut);
+  }
+  const expTotalRange = expInRange.reduce((a,e)=>a+e.amount,0);
+
   const count = inRange.length;
   const total = inRange.reduce((s,r)=>s+r.price,0);
 
@@ -876,16 +1092,13 @@ function showReport(days){
     ${avgDurationSec != null ? `
     <div class="report-line"><span>⏱ เวลาเฉลี่ยต่อคัน</span><b>${formatDuration(avgDurationSec)} นาที</b></div>
     ` : ''}
-    <div class="report-sub">แยกตามขนาดรถ</div>
-    ${SIZES.map(sz=>`
-      <div class="report-line">
-        <span>${sz.key} · ${sz.label}</span>
-        <b>${bySize[sz.key].count} คัน · ${bySize[sz.key].total.toLocaleString()}฿</b>
-      </div>
-    `).join('')}
-    <div class="report-sub">แยกตามวิธีชำระเงิน</div>
-    <div class="report-line"><span>💵 เงินสด</span><b>${cash.length} คัน · ${cashTotal.toLocaleString()}฿</b></div>
-    <div class="report-line"><span>🏦 โอน</span><b>${transfer.length} คัน · ${transferTotal.toLocaleString()}฿</b></div>
+    ${payTableHtml('💵 เงินสด','',cash)}
+    ${payTableHtml('🏦 โอน','transfer',transfer)}
+    <div class="report-sub">รายจ่าย / คงเหลือสุทธิ</div>
+    ${isDate ? (expInRange.length ? expInRange.map(e=>`<div class="exp-line"><span class="exp-name">${escapeHtml(e.name)}</span><span class="exp-amt">${e.amount.toLocaleString()}</span><button class="exp-del" onclick="deleteExpense('${e.id}')" aria-label="ลบรายจ่าย">✕</button></div>`).join('') : '') : ''}
+    <button class="btn btn-ghost btn-block" style="margin:10px 0;" onclick="openExpenseModal(${isDate ? `'${selectedDate}'` : ''})">➕ เพิ่มรายจ่าย${isDate ? ' ของวันที่เลือก' : ''}</button>
+    <div class="report-line"><span>หัก รายจ่ายรวม</span><b>${expTotalRange ? expTotalRange.toLocaleString() : '-'}฿</b></div>
+    <div class="net-box"><span>คงเหลือสุทธิ</span><span>${(total-expTotalRange).toLocaleString()} บาท</span></div>
     <div class="report-sub">⏰ ช่วงเวลาที่รถเข้ามากที่สุด</div>
     ${peakLabel ? `
       <div class="peak-callout">🔥 ช่วงพีค: <b>${peakLabel} น.</b> (${maxHourCount} คัน)</div>
@@ -912,6 +1125,8 @@ function showReport(days){
 
   // 1) โหลดจากแคชในเครื่องก่อน ให้หน้าจอขึ้นทันทีไม่มีอาการหน่วง
   pending = loadPending();
+  pendingExp = loadExpPending();
+  expenses = applyPendingExp(loadExpCache());
   records = mergeWithPending(loadCache());
   dailyCounter = todayCount();
   renderSummary();
@@ -927,6 +1142,10 @@ function showReport(days){
       if(fresh){
         records = mergeWithPending(fresh);
         saveCache(fresh); // แคชเฉพาะข้อมูลที่ยืนยันแล้วจาก Sheet
+        if(fetchedExpenses){
+          saveExpCache(fetchedExpenses);
+          expenses = applyPendingExp(fetchedExpenses);
+        }
         dailyCounter = todayCount();
         renderSummary();
       }
@@ -937,7 +1156,7 @@ function showReport(days){
   }
 
   // 3) ถ้ามีรายการค้างส่งจากครั้งก่อน ลองส่งใหม่
-  if(pending.length > 0){
+  if(pending.length > 0 || pendingExp.length > 0){
     startRetryLoop();
     flushPending();
   }
