@@ -312,7 +312,6 @@
         </div>
       </div>
       <div id="sum-by-size"></div>
-      <div id="sum-expense"></div>
       <div class="pending-badge" id="pending-badge">⏳ รอซิงค์ขึ้น Google Sheet 0 รายการ</div>
     </div>
 
@@ -772,25 +771,13 @@ function renderSummary(){
   document.getElementById('sum-count').textContent = todays.length + ' คัน';
   document.getElementById('sum-total').textContent = total.toLocaleString() + ' บาท';
 
-  const cash = todays.filter(r=>r.method==='เงินสด');
-  const transfer = todays.filter(r=>r.method==='โอน');
+  // หน้าแรกแสดงแค่จำนวนคันแต่ละขนาด — ตารางเงินสด/โอนและรายจ่ายอยู่ในหน้ารายงานย้อนหลัง
   document.getElementById('sum-by-size').innerHTML =
-    payTableHtml('💵 เงินสด','',cash) + payTableHtml('🏦 โอน','transfer',transfer);
-
-  const todaysExp = expenses.filter(e=>todayKey(e.ts)===today);
-  const expTotal = todaysExp.reduce((s,e)=>s+e.amount,0);
-  const net = total - expTotal;
-  const expRows = todaysExp.length
-    ? todaysExp.map(e=>`<div class="exp-line"><span class="exp-name">${escapeHtml(e.name)}</span><span class="exp-amt">${e.amount.toLocaleString()}</span><button class="exp-del" onclick="deleteExpense('${e.id}')" aria-label="ลบรายจ่าย">✕</button></div>`).join('')
-    : `<div class="queue-empty" style="padding:10px;">ยังไม่มีรายจ่ายวันนี้</div>`;
-  document.getElementById('sum-expense').innerHTML = `
-    <div class="report-sub">รายจ่ายวันนี้</div>
-    ${expRows}
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openExpenseModal()">➕ เพิ่มรายจ่าย</button>
-    <div class="net-line" style="margin-top:12px;"><span>รวมรายรับ (เงินสด+โอน)</span><b>${total.toLocaleString()}</b></div>
-    <div class="net-line neg"><span>หัก รายจ่าย</span><b>${expTotal ? expTotal.toLocaleString() : '-'}</b></div>
-    <div class="net-box"><span>คงเหลือสุทธิ</span><span>${net.toLocaleString()} บาท</span></div>
-  `;
+    '<div class="report-sub">แยกตามขนาดรถ</div>' +
+    SIZES.map(sz=>{
+      const n = todays.filter(r=>r.size===sz.key).length;
+      return `<div class="report-line"><span>${sz.key} · ${sz.label}</span><b>${n} คัน</b></div>`;
+    }).join('');
 }
 
 function escapeHtml(str){
